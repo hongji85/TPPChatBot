@@ -1,0 +1,23 @@
+<div class="jumbotron">
+  <main role="main" class="inner cover">
+      <h1 class="cover-heading">Chatbot</h1>
+
+    <ng-container *ngFor="let message of messages | async">
+
+      <div class="message" [ngClass]="{ 'from': message.sentBy === 'agent',
+                                        'to':   message.sentBy === 'user' }">
+        {{ message.content }}
+      </div>
+
+    </ng-container>
+
+
+    <label for="nameField">Your Message</label>
+
+
+    <input [(ngModel)]="formValue" (keyup.enter)="sendMessage()" type="text"><br>
+
+    <button (click)="sendMessage()" class="btn btn-lg">Send</button>
+
+  </main>
+</div>

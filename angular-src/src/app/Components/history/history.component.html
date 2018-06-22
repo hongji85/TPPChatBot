@@ -1,0 +1,7 @@
+
+<h4>Chat History</h4>
+<ul class="list-group">
+<ng-container *ngFor="let customer of customers">
+  <li class="list-group-item"><a class="nav-link" [routerLink]="['/chatlog', customer]">{{ customer }} </a></li>
+</ng-container>
+</ul>

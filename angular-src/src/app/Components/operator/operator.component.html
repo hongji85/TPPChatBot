@@ -1,0 +1,31 @@
+<div class="jumbotron">
+  <main role="main" class="inner cover">
+      <h4 class="cover-heading">Customers</h4>
+
+      <mat-tab-group (selectedTabChange)="tabChanged($event)">
+        <ng-container *ngFor="let customer of customers | async">
+          
+          <mat-tab [label]="customer.customerName">
+            
+            <ng-container *ngFor="let message of operatorMessages | async">
+              <ng-container *ngIf="customer.customerId == message.customerId">
+                  <div class="message" [ngClass]="{ 'from': message.sentBy === 'agent', 'to':   message.sentBy === 'user' }">
+                    {{ message.utterance }}
+                  </div>
+              </ng-container>
+            </ng-container>
+
+          </mat-tab>
+
+        </ng-container>
+    </mat-tab-group>
+
+    <label for="nameField">Your Message</label>
+
+
+    <input [(ngModel)]="formValue" (keyup.enter)="sendMessage()" type="text" class="form-control"><br>
+
+    <button (click)="sendMessage()" class="btn btn-lg">Send</button>
+
+  </main>
+</div>

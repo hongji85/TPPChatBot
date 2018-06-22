@@ -1,0 +1,17 @@
+<h4 class="page-header">Chat Logs</h4>
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">Sent By</th>
+      <th scope="col">Content</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let chatlog of chatlogs">
+      <tr>
+        <td scope="row">{{ chatlog.SentBy }}</td>
+        <td>{{ chatlog.Content }}</td>
+      </tr>
+    </ng-container>
+  </tbody>
+</table>
