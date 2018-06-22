@@ -1,0 +1,211 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Chatbot</title>
+  <base href="/">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  
+
+  <!-- CSS Reset -->
+  <link rel="stylesheet" href="//cdn.rawgit.com/necolas/normalize.css/master/normalize.css">
+  
+  <!-- Milligram CSS minified -->
+  <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css">
+
+</head>
+<body>
+    <div class="jumbotron">
+        <main role="main" class="inner cover">
+            <h1 class="cover-heading">Chatbot</h1>
+            <ul id="chatTabs" class="nav-tabs nav"></ul>
+            <div id="chatWindows" class="tab-content"></div>
+
+            <form>
+                <label for="m">Your Message</label>
+                <input id="m" autocomplete="off" class="form-control" />
+                <br>
+                <button class="btn btn-lg">Send</button>
+            </form>
+        </main>
+    </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js" integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T" crossorigin="anonymous"></script>
+<script>
+    $(function () {
+        var socket = io('/operator');
+
+        // UI elements for all the customers we currently aware of
+        var connectedCustomers = {};
+        // Pointer to the currently open tab
+        var currentTab;
+
+        // The format we use to communicate a message to a specific customer
+        var messageObject = function(customerId, utterance) {
+            return { customerId: customerId, utterance: utterance };
+        };
+
+        // When the form is submitted, send an operator message to the server, referencing
+        // the current tab's customer
+        $('form').submit(function(){
+            if(currentTab.disconnected) {
+                alert('This customer has disconnected');
+                return false;
+            }
+            var messageText = $('#m').val();
+            socket.emit('operator message', messageObject(currentTab.customerId, messageText));
+            $('#m').val('');
+                return false;
+        });
+
+        // Switch to a different tab
+        var setCurrentTab = function(target) {
+            // Do nothing if this is already the current tab
+            if(currentTab === target) return;
+            // Set the current tab
+            currentTab = target;
+        };
+
+        // Create a set of UI elements for a new customer tab.
+        // The customerId is the ID used internally by for websocket communication.
+        // In your implementation, you could replace this with the customer's name
+        // after fetching it from your datastore.
+        var createNewCustomerTab = function(customerId) {
+            let custId = customerId.replace("/customer#", "");
+            var newChatElements = {};
+            newChatElements.customerId = customerId;
+            console.log(customerId);
+            // A tab displaying the customer id
+            newChatElements.tab = $('<li class="nav-item"><a href="#' + custId + '" data-toggle="tab" class="nav-link">' + custId + '</a></li>');
+            // The chat log for this customer
+            newChatElements.window = $('<div id="' + custId + '" class="tab-pane container"></div>');
+
+            var clickHandler = function() {
+                setCurrentTab(newChatElements);
+            };
+            newChatElements.tab.click(clickHandler);
+
+            connectedCustomers[customerId] = newChatElements;
+
+            if(!currentTab) {
+                console.log('Setting current tab');
+                clickHandler();
+            }
+
+            $('#chatTabs').append(newChatElements.tab);
+            $('#chatWindows').append(newChatElements.window);
+        };
+
+        // Notify the operator that a customer has requested them
+        var notifyOperatorRequest = function(customerId) {
+            if(!connectedCustomers[customerId]) {
+                console.log('Received operator request from unknown customer id: ' + customerId);
+                return;
+            }
+            setCurrentTab(connectedCustomers[customerId]);
+            alert('Operator requested!');
+        };
+
+        // Notify the operator that a customer has disconnected
+        var notifyCustomerDisconnected = function(customerId) {
+            if(!connectedCustomers[customerId]) {
+                console.log('Received disconnect notification for unknown customer id: ' + customerId);
+                return;
+            }
+            connectedCustomers[customerId].disconnected = true;
+            connectedCustomers[customerId]
+                .window
+                .append($('<li class="customer-message">')
+                .text('--- Customer disconnected ---'));
+
+        };
+
+        // Notify the operator of a system error
+        var notifySystemError = function(error) {
+            var errorText;
+            // If we get this custom error type, the error was due to an operator mistake; display it
+            // in a friendlier manner (without the word 'Error')
+            if(error.type === 'CustomerModeError') {
+                errorText = error.message;
+            // Otherwise, print the error type and message
+            } else {
+                errorText = error.type + ' - ' + error.message;
+            }
+            console.log(errorText);
+            if(!currentTab) return;
+            currentTab.window.append($('<li class="operator-error">').text(errorText));
+        };
+
+        // Display messages sent by any operator to the customers this operator knows about
+        var receivedOperatorMessage = function(msg) {
+            var customer = connectedCustomers[msg.customerId];
+            if(!customer) {
+                console.log('Received operator message to unknown customer id: ' + JSON.stringify(msg));
+                return;
+            }
+            customer.window
+                .append($('<div class="message from">').text(msg.utterance));
+        };
+
+        // Display messages sent by customers
+        var receivedCustomerMessage = function(msg) {
+            if(!connectedCustomers[msg.customerId]) {
+                console.log('Received message for unknown customer id: ' + JSON.stringify(msg));
+                return;
+            }
+            // If your implementation has access to the customer's name,
+            // you can modify the next line to display it in the prefix.
+            var prefix = msg.isAgentResponse ? 'Agent: ' : 'Customer: ';
+            connectedCustomers[msg.customerId]
+                .window
+                .append($(msg.isAgentResponse ? '<div class="message from">' : '<div class="message to">')
+                .toggleClass('agent-response', msg.isAgentResponse)
+                .text(prefix + msg.utterance));
+        };
+
+        // Attach all our event handlers
+        socket.on('customer connected', createNewCustomerTab);
+        socket.on('customer message', receivedCustomerMessage);
+        socket.on('operator requested', notifyOperatorRequest);
+        socket.on('operator message', receivedOperatorMessage);
+        socket.on('customer disconnected', notifyCustomerDisconnected);
+        socket.on('system error', notifySystemError);
+
+    });
+</script>
+
+<style>
+    .message {
+        border-radius: 50px;
+        margin: 0 15px 10px;
+        padding: 15px 20px;
+        position: relative;
+        font-weight: bold;
+    }
+    .message.to {
+        background-color: #2095FE;
+        color: #fff;
+        margin-left: 100px;
+        text-align: right;
+    }
+    .message.from {
+        background-color: #E5E4E9;
+        color: #363636;
+        margin-right: 100px;
+
+    }
+    .message.to + .message.to,
+    .message.from + .message.from {
+    margin-top: -10px;
+    }
+</style>
+
+</body>
+</html>

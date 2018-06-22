@@ -1,0 +1,154 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BD Support</title>
+  <base href="/">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  
+
+  <!-- CSS Reset -->
+  <link rel="stylesheet" href="//cdn.rawgit.com/necolas/normalize.css/master/normalize.css">
+  
+  <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <h4 class="heading"><img src="https://storage.googleapis.com/cloudprod-apiai/714b6d54-b341-4541-b64a-260e91261dad_l.png" height="35" width="35"> BD Support</h4>
+    <div class="main">
+        <div class="entername">
+            <label for "n">What's your nickname?</label>
+            <input id="n" autocomplete="off" class="form-control" />
+            <br>
+            <button id="btnSubmitName" class="btn">Submit</button>
+        </div>
+        <div class="mainchat">
+            <div class="messages"></div>
+            <form>
+                <label for="m">Your Message</label>
+                <input id="m" autocomplete="off" class="form-control" />
+            </form>
+        </div>
+    </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script>
+    $(function () {
+      var socket = io('/customer');
+
+      google.charts.load('current', {'packages':['corechart']});
+      //google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+        ['Security', 'Quantity'],
+        ['BHP', 1000],
+        ['ANZ', 500],
+        ['WOW', 200]
+        ]);
+
+        // Optional; add a title and set the width and height of the chart
+        var options = {'backgroundColor': '#E5E4E9','width':240, 'height':200};
+
+        // Display the chart inside the <div> element with id="piechart"
+        $('<div id="piechart" class="message from"></div>').appendTo('.messages')
+        var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+        chart.draw(data, options);
+        }
+
+      $('.mainchat').hide();
+
+      // When the form is submitted, send a customer message to the server
+      $('form').submit(function(){
+        var messageText = $('#m').val();
+        if (messageText === 'show my portfolio') {
+            drawChart();
+            $('#m').val('');
+            return false;
+        }
+        $('<div class="message to">' + messageText + '</div>').appendTo('.messages');
+        socket.emit('customer message', messageText);
+        $('#m').val('');
+        return false;
+      });
+
+      // When we receive a customer message, display it
+      socket.on('customer message', function(msg){
+        $('<div class="message from">' + msg + '</div>').appendTo('.messages');
+        var divMessages = $('.messages')[0];
+        divMessages.scrollTop = divMessages.scrollHeight;
+      });
+
+      // When we receive a system error, display it
+      socket.on('system error', function(error) {
+        var errorText = error.type + ' - ' + error.message;
+        $('<div class="message from">' + errorText + '</div>').appendTo('.messages');
+      });
+
+       var submitName = (name) => {
+            socket.emit('customer name', name);
+            $('.mainchat').fadeIn();
+            $('.entername').fadeOut();
+        }
+
+      $('#btnSubmitName')[0].onclick = () => {
+          submitName($('#n').val());
+      }
+    });
+
+    
+</script>
+<style>
+    .heading {
+        height: 55px;
+        background-color:black;
+        color: white;
+        padding-left: 15px;
+        padding-top: 10px;
+        position: fixed;
+        width: 100%;
+        top: 0px;
+    }
+    .main {
+        margin: 70px 10px 0 10px;
+    }
+    .mainchat {
+        margin-bottom: 10px;
+    }
+    .messages {
+        height: 350px;
+        overflow-y: scroll;
+    }
+    .message {
+        border-radius: 50px;
+        margin: 0 15px 10px;
+        padding: 15px 20px;
+        font-weight: bold;
+        font-size: small;
+    }
+    .message.to {
+        background-color: #2095FE;
+        color: #fff;
+        margin-left: 100px;
+        text-align: right;
+    }
+    .message.from {
+        background-color: #E5E4E9;
+        color: #363636;
+        margin-right: 100px;
+
+    }
+    .message.to + .message.to,
+    .message.from + .message.from {
+        margin-top: -10px;
+    }
+</style>
+
+</body>
+</html>
